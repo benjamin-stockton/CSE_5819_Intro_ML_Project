@@ -1,0 +1,400 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{CSE 5819 Final Report: Modeling Multivariate Time Series with Extreme Values
+}
+
+\author{\IEEEauthorblockN{Benjamin Stockton}
+\IEEEauthorblockA{\textit{Department of Statistics} \\
+\textit{University of Connecticut}\\
+Storrs, CT, USA \\
+benjamin.stockton@uconn.edu}
+\and
+\IEEEauthorblockN{Yongqi Ni}
+\IEEEauthorblockA{\textit{Department of CSE} \\
+\textit{University of Connecticut}\\
+Storrs, CT, USA \\
+yongqi.ni@uconn.edu}
+}
+
+\maketitle
+\thispagestyle{plain}
+\pagestyle{plain}
+
+\section{Introduction}
+
+Time series prediction is complicated by the presence of extreme events such as flooding events in precipitation series \cite{zhangEnhancingTimeSeries2021}. Making predictions while accounting for these extreme events is addressed by Ding et al in \cite{dingModelingExtremeEvents2019} and further addressed by the same working group in \cite{zhangEnhancingTimeSeries2021}. We propose to extend and apply their Generalized Extreme Value Loss function to the problem of multivariate time series prediction. 
+
+Time series are characterized by their sequential nature, typically with observations made at regular intervals. Often these series display periodic and seasonal behavior and often these behaviors are overlaid with each other resulting in heavily patterned data. Some observations may be much larger (smaller) than the rest of the time series. Under a Gaussian distributional assumption, we may assume that this happens less than 5\% of the time, but often we observe extreme events at 5-10\% of time points \cite{dingModelingExtremeEvents2019}. The standard methods of both statistical and machine learning modeling do not attempt to model these extreme events and rather focus on the central tendencies of the process given prior observations and the autocorrelation in the series.
+
+Statistical models such as moving averages and more sophisticated models such as autoregressive integrate moving averages (ARIMA) \cite{shumwayTimeSeriesData2019} and variations of the ARIMA. The field of machine learning has largely focused on using models such as recurrent neural networks and modifications such as long short-term memory (LSTM) and gated recurrent units (GRU) \cite{liptonCriticalReviewRecurrent2015}. Further extensions of convolutional networks have resulted in the  temporal convolutional networks (TCN) and TCN-LSTM \cite{leaTemporalConvolutionalNetworks2017, zhangEnhancingTimeSeries2021}. Largely all of these models have focused on optimizing the squared error loss function which penalizes predictions of extreme events.
+
+In the working group's first paper \cite{dingModelingExtremeEvents2019}, they address the extreme value problem by modeling both the presence of extreme values and the time series independently. To make predictions, they first simultaneously predict the time series outcome $\tilde{o_t}$ for a "normal" event and whether the time point is likely to be an extreme event $u_t$. Then they use learned weights $b$ to generate the final prediction $o_t = \tilde{o}_t + b'u_t$. If it is unlikely to be an extreme event then $o_t \approx \tilde{o}_t$, while if it is likely to be extreme then $o_t$ is biased by $b$ in the predicted direction. To train the model for predicting extreme values, the authors used a modification of binary cross entropy they termed extreme value loss (EVL). 
+\begin{align*}
+L_{EVL}(u_t) = &-(1 - P(v_t = 1))[1 - \frac{u_t}{\gamma}]^\gamma v_t \log u_t \\
+    &- P(v_t = 1)[1 - \frac{1-u_t}{\gamma}]^\gamma (1-v_t) \log (1-u_t)
+\end{align*}
+where $u_t$ is the extreme event prediction, $v_t$ is the ground-truth, and $\gamma$ parameterizes the generalized extreme value distribution. The authors found that this model produced a substantial improvement in predicting time series with extreme values relative to existing methods such as ARIMA, NARX, and LSTM, but then further generalized their model to the GEVL structure to achieve even better results \cite{zhangEnhancingTimeSeries2021}. 
+
+\begin{table}[t]
+        \centering
+        \begin{tabular}{lrrrrr}
+\hline
+                        Forecast RMSE & VAR &  Gaussian &  Gumbel &  Fr\'echet &  Cauchy \\
+\hline
+                 WS Wakulla &  1.3550  & 0.5590 & 0.6572 & 0.6736 & \textbf{0.5131} \\
+BP Wakulla &  1.9931 & \textbf{0.5215} & 0.7638 & 0.6733 & \textbf{0.5125} \\
+       cos WD Wakulla &  0.6660 & 0.1777 & 0.2900 & 0.4178 & \textbf{0.1510} \\
+       sin WD Wakulla &   0.5659 & 0.1856 & 0.2543 & 0.3563 & \textbf{0.1738} \\
+    WS Hillsborough & 1.4476  & 0.6035 & 0.6236 & 0.7959 & \textbf{0.5982} \\
+  cos WD Hillsborough &   0.6526 & 0.1604 & 0.2257 & 0.4471 & \textbf{0.1533} \\
+  sin WD Hillsborough &   0.5201 & 0.1678 & 0.2399 & 0.3297 & \textbf{0.1425} \\
+           WS Miami-Dade &   2.2092 & \textbf{0.9160} & 0.9366 & 1.0095 & 0.9251 \\
+         cos WD Miami-Dade &  0.6197 & 0.2378 & 0.3553 & 0.4145 & \textbf{0.2056} \\
+         sin WD Miami-Dade & 0.4695 & 0.2675 & 0.3333 & 0.3343 & \textbf{0.2242} \\
+\hline
+\end{tabular}
+        \caption{RMSE of the four multivariate models forecasts for the Test Data. \textbf{Bold} values indicate best forecast performance on that variable.}
+        \label{tab:forecast-res-rmse}
+    \end{table}
+
+We are applying their GEVL framework, equipped with new kernel functions, to a multivariate time series prediction problem using a wider selection of kernel density functions. First, we need to verify that their method actually performs as claimed; namely that heavy-tailed loss functions will allow for extreme-value forecasting on their own. We may also try to use additional models such as auto-encoders, or attempt to remedy the missing data problem with some applications of the ideas from \cite{cheRecurrentNeuralNetworks2018, tanDATAGRUDualAttentionTimeAware2020}.
+
+\section{Related Works}
+
+% Yongqi - focus on application papers that discuss climate or transit (depending on your choice of the data set)
+% “Time-Series Modeling and Prediction of Global Monthly Absolute Temperature for Environmental Decision Making“
+\subsection{"Time series modeling and prediction of global monthly absolute temperature for environmental decision making" \cite{yeTimeseriesModelingPrediction2013}}
+
+A generalized structural time series model could use a deterministic-stochastic combined approach(DSC), especially for predicting the temperature \cite{yeTimeseriesModelingPrediction2013}. Temperature change happens monthly in an equally spaced time series, thus the univariate time series models are widely used to deal with the complexity of mainstream climate models. The models comprise a deterministic trend plus random residuals about the trend, where the residuals are assumed to represent natural variability. Most of these univariate time series models choose to use temperature anomalies, the anomaly values relative to a predefined “normal” period, as reasonable data, however, \cite{yeTimeseriesModelingPrediction2013} states it will add extra complexity in data preparation and result interpretation. Thus they decide to design the time series models by absolute temperature. According to that, we need decide the date type seriously when we test our time series model
+
+Their general model at time point $t$ they used is 
+$$T_t = L_t + C_t + E_t$$ 
+where $T_t$ is the series of absolute temperature, $L_t$ is the trend term, $C_t$ is the periodicity term and $E_t$ is the error term. $L_t$ and $C_t$ are the deterministic components of $T_t$, while $E_t$ is the stochastic component of $T_t$. We could make our model of $T_t$ based by this equation. 
+
+
+% Ben - focus on technical papers that discuss incorporating features.
+% “DATA-GRU: dual-attention time-aware gated recurrent unit for irregular multivariate time series” Tan et al (2020)
+% “Enhancing time series predictors with generalized extreme value loss” Zhang et al (2021)
+% “Recurrent neural networks for multivariate time series with missing values” Che 2018
+% 
+
+
+
+\subsection{"A critical review of recurrent neural networks for sequence learning" \cite{liptonCriticalReviewRecurrent2015}}
+
+Lipton et al provide a thorough review of the theory underlying RNNs \cite{liptonCriticalReviewRecurrent2015}. Recurrent neural networks are a special class of neural network that specifically allow for information to be passed between nodes in the form of hidden states. These hidden states are created by an activation function of the linear combination of the weights, the inputs $X_t$ at time $t$, and the previous hidden state $h_{t-1}$ as described further in section 3. One particular complication of training the standard RNN is the phenomena of exploding or vanishing gradients. This phenomena is also present in long short-term memory (LSTM) models, but is avoided by the gated recurrent unit (GRU) which decays some hidden states to zero depending on a gating activation function. 
+
+Recurrent neural networks can be applied to many different sequence learning problems including text or speech modeling as well as time series. Similar to the convolutional neural networks which assume independence between observations, the recurrent variant can be applied to various tasks such as regression and classification depending on the activation function for the output layer and accordingly the loss function as well. 
+
+\subsection{“Enhancing time series predictors with generalized extreme value loss” \cite{zhangEnhancingTimeSeries2021}}
+
+Following the initial paper "Modeling Extreme Events in Time Series Prediction" \cite{dingModelingExtremeEvents2019}, the authors continued developing their model and simplified it with the use of a Generalized Extreme Value Loss function in \cite{zhangEnhancingTimeSeries2021}. Their new loss function generalizes their two stage procedure where an additional RNN must be used to encode which previous time windows had extreme events. The GEVL function allows for using either a data transformation (translating extreme events to the range of the "normal" events to obtain a Gaussian marginal) or a loss function based on the kernel density estimate with a heavy-tail. The loss function is defined
+$$L_{GEVL}(X^1, Y) = -\frac{1}{T \tau} \sum_{t = 1}^T \log \mathcal{K}\left(\frac{f_\theta (X^1_{1:t}) - \phi(y_t)}{\tau}\right)$$
+where $Y = {y_1,..., y_{T-1}}$ with $y_t = x_{t+1}$, $\mathcal{K}$ is a kernel density estimate with bandwidth $\tau$, $f_\theta$ is our model output indexed by $\theta$, and $\phi(t_t)$ is a transformation function. This loss function can be applied to the analyst's choice of sequence learning model such as RNN, TCN, LSTM, etc. \cite{zhangEnhancingTimeSeries2021}.
+
+The GEVL then allows for two implementation \cite{zhangEnhancingTimeSeries2021}. The first implementation extends on that of \cite{dingModelingExtremeEvents2019} and here is specified by using the Gaussian kernel density and "dynamic shift" transformation $\phi(y_t) = y_t - bu_t$ where $b$ is a bias weights and $u_t$ is an estimator of the ground-truth extreme event indicator. This then requires learning $u_t$ from the training data and hence requires the additional memory module in the form of a GRU. The output of this memory module determines if the observation $y_t$ should be transformed to the normal range of the data. In addition to this module, they then simultaneously train a time series learning neural network on the normal-range constrained data \cite{zhangEnhancingTimeSeries2021}. 
+
+The second implementation is more lightweight and somewhat reminiscent to generalized linear models in statistical modeling \cite{zhangEnhancingTimeSeries2021}. Instead of incorporating an additional memory module to learn the indicators of extreme values, the distributional assumption of the data is modified to accommodate a heavy-tailed distribution like the Gumbel or Pareo that allows for extreme events to occur with greater frequency than a light tail distribution like the Gaussian. This is similar to GLIMs modeling the such as the count regression allowing for light-tailed distributions such as the Poisson and heavy-tailed/over-dispersed distributions such as the negative binomial.
+
+\subsection{“DATA-GRU: dual-attention time-aware gated recurrent unit for irregular multivariate time series” \cite{tanDATAGRUDualAttentionTimeAware2020}}
+
+Multivariate time series are a direct generalization of univariate time series and have been applied to classification tasks such as in \cite{tanDATAGRUDualAttentionTimeAware2020}. The DATA-GRU model developed in \cite{tanDATAGRUDualAttentionTimeAware2020} was developed especially for learning electronic health records (EHR) data which often has irregular time intervals between observations for each feature where features are health measurements or EHR codes. Additionally, not all features are collected at each time point for a patient, potentially due to symptom changes so that the presence of missing values is itself informative. Their model includes attention mechanisms to account for both of these complications, a time attention mechanism for the irregularities and a dual-attention mechanism that decays the weights of imputed values since they are less reliable and gives higher importance to the reliable truly observed values. 
+
+% \begin{figure*}[ht]
+%     \centering
+%     \includegraphics[width=.75\textwidth]{missing_data_all_counties.png}
+%     \caption{Plot of the missing data in the Florida data set. Gaps in the gray bars indicate missingness.}
+%     \label{fig:missing-data}
+% \end{figure*}
+    
+
+From our perspective, we are particularly interested in how the multivariate time series are analyzed by \cite{tanDATAGRUDualAttentionTimeAware2020}. They predicted hospital mortality based on the multivariate time series observed for each patient. This classification problem is different from the problem of predicting future values of the time series as was done in \cite{dingModelingExtremeEvents2019, zhangEnhancingTimeSeries2021, chungEmpiricalEvaluationGated2014}. Other work has also addressed the classification problem however, including \cite{cheRecurrentNeuralNetworks2018, zhangEnhancingTimeSeries2021}. Generally, each of these papers uses a linear combination of weights $(W, U, b)$ and all the time series $X_t$ and previous hidden state $h_{t-1}$ as inputs in the activation functions to obtain hidden states $h_t = \sigma(W X_t + U h_{t-1} + b)$. Note that $W$ and $U$ can be matrices, $b$ can be vector and $X_t$, $h_{t-1}$ can be vector-valued as well. This will allow for us to use all of our time series to train weights and be dimension-reduced to the hidden states. 
+
+\subsection{“Recurrent neural networks for multivariate time series with missing values” \cite{cheRecurrentNeuralNetworks2018}}
+
+Che et al are engaged with the missing data problem in time series. Missing values can occur largely under three missingness mechanisms, missing completely at random, missing at random, and missing not at random. The different statistical properties of these mechanisms can make it extremely difficult to produce good statistical inferences or predictions in a machine learning context as the information that is missing may or may not be recoverable from the observed data. Che et al attempt to overcome this obstacle by including masking indicators (which indicate missingness) and time interval indicators for how long it has been since the last complete observation in that time series \cite{cheRecurrentNeuralNetworks2018}. 
+
+Notably their method, like DATA-GRU, does not attempt to impute the missing values which is a standard practice in statistical analysis. In part this seems to be due to a reluctance to model the probability distributions that arise with incomplete data that are handled somewhat readily with statistical models but are less tractable for machine learning models.
+
+Additional papers will be reviewed throughout the course of the project as necessary.
+
+\section{Information Flow \& System Design}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width = .6\textwidth]{model diagram.png}
+    \caption{Model diagram}
+    \label{fig:model-diagram}
+\end{figure}
+
+\section{Technical Components}
+
+\subsection{GEVL Extensions}
+
+% What are we going to do generally? What's the problem set up
+
+We propose to use the Generalized Extreme Value Loss function from \cite{zhangEnhancingTimeSeries2021} to model multivariate time series with an application to meteorological prediction. The simultaneous modeling of time series was addressed in \cite{tanDATAGRUDualAttentionTimeAware2020, rouhiardeshiriMultivariateGatedRecurrent2021, wuDataImputationMultivariate2022, zhangEnhancingTimeSeries2021} by using all the time series as inputs to the gated recurrent unit and having the objective function map the hidden state to the output space ie the range of time series values or a classification task. Without loss of generality, consider that we have three time series to model jointly. Suppose we have observed three time series of length $T$ $(X^1, X^2, X^3)$ where $X^j = (x_1^j, x_2^j, ..., x_T^j)$ and let $X^j_{1:t} \subset X^j$ be the sub-series $(x_1^j, x_2^j, ..., x_t^j)$. Our goal is for this joint model to make better predictions than if we look at each time series individually; $x^1_{T+1} = f(X^1)$ so that $X^2$, $X^3$ don’t help predict the first time series. 
+
+Additionally, a complication inherent to time series is modeling the data after it has been made stationary and any other seasonal trends have been removed. This is required with statistical models like the ARIMA and seem to be useful for the LSTM as well \cite{teamKerasDocumentationLSTM}. The seasonal and trend components can then be added back to the predicted value from the model to get a final prediction. Python has several libraries readily available for pre-processing time series data which we will make use of.
+
+% Explain the technical background of the EVL/GEVL papers
+
+We want to create a model called $f(X^1_{1:t}, X^2_{1:t}, X^3_{1:t})$ that will predict the next value for each of the time series together $(x^1_{t+1}, x^2_{t+1}, x^3_{t+1}) = f(X^1_{1:t}, X^2_{1:t}, X^3_{1:t})$, where the model $f$ will be a GRU, LSTM, or other sequence learning neural network. We will use the GEVL function with the Gumbel kernel density estimate and identity transformation function. This will mean we are using the information from all three time series to predict each individual time series. 
+
+Compared to traditional statistical models like the ARIMA, it is fairly simple to extend the RNN structure to multivariate problems with additional inputs. The hidden states for time point $t$ are calculated as $$h_t = \sigma(W_x X_t + W_h h_{t-1} + b_h)$$ where $X_t = (X^1_t, X^2_t, X^3_t)$ contains all of the time series values at time point $t$, $h_{t-1}$ is the previous hidden state vector, $W_x$, $W_h$ are the weight matrices for the time series inputs and previous hidden states, and $b_h$ is the bias for the hidden states. The weights are shared across all of the hidden state units in the network greatly reducing the number of weights to be learned \cite{choPropertiesNeuralMachine2014}.
+
+In the work by Zhang and Ding et al, they define extreme events to be observations $x_t$ s.t. $X_t \leq \epsilon_1$ or $x_t \geq \epsilon_2$ where $\epsilon_p$ are arbitrarily chosen thresholds s.t. 5-10\% of observations fall outside this band \cite{zhangEnhancingTimeSeries2021, dingModelingExtremeEvents2019}. This 5-10\% of distributions lay in the heavy-tail of the marginal distribution of $X$. The events may be solely greater than $\epsilon_2$ or solely less than $\epsilon_1$ or equivalently $\epsilon_p = \pm \infty$ to make it bounded only from above or below.
+
+As discussed in \cite{zhangEnhancingTimeSeries2021}, $L_{GEVL}$ simplifies to the squared error loss when the Gaussian kernel is selected. They also considered the Fr\'{e}chet and Gumbel kernels for two specific cases, right extreme events for nonnegative time series and two-sided extreme events for real-valued time series respectively, although we are not restricted to these kernels. 
+
+The Gumbel kernel with the identity loss function in particular reduces the GEVL function to the squared error loss regularized by $(1 - e^{-u_t^2})^\gamma$ where $u_t = f_\theta(X^1_{1:t}) - y_t$ and $\gamma \in \mathbb{R}^+$ is a hyperparameter. This gives the loss function 
+$$L_{Gumbel}(X^1, Y) = \frac{1}{T} \sum_{t=1}^T (1 - e^{-u_t^2})^\gamma u_t^2$$
+Regularizing the squared error loss by the log-Gumbel term allows predictions of extreme values to be less heavily penalized. 
+
+% Why GEVL instead of EVL?
+
+Although in \cite{dingModelingExtremeEvents2019}, they use essentially a two-stage model that learns and predicts the presence of extreme events in a time window and then modifies a standard GRU model's prediction accordingly (GRU trained with the Gaussian kernel/squared error loss). This method is more computationally intensive than using a different kernel that can account for extreme events and skips the extreme event prediction through an additional mechanism as discussed in \cite{zhangEnhancingTimeSeries2021}. As such, we will continue with their "enhanced" GEVL mechanism for our modeling. 
+
+% What additions and extensions will we make?
+
+Primarily we will explore using different kernel density functions within the GEVL to evaluate how the choice of kernel effects the predictions. We will also predict future values simultaneously across multiple time series where the \cite{zhangEnhancingTimeSeries2021} paper focuses primarily on univariate time series prediction. In addition to the Gumbel kernel, we will also try to use the Cauchy kernel and potentially others after consulting the literature on kernel density estimators.
+
+% Multivariate time series prediction/classification
+% Using even more KDE functions? Like Cauchy
+
+% What technical problems must be overcome?
+% Implementation. No source code seems to be readily available for the Ding 2019 paper, but the Zhang paper 2021 uses LSTM and TCN with a new loss function so that should be more manageable.
+
+A main challenge is getting the model to consider the spatial and temporal associations between the counties at different time points. We also have to impute the missing data for a proper analysis. There's a wide gap in the observations of the pressure and several intermittent gaps in the wind observations (speed and direction jointly).
+
+Deriving the GEVL kernels is challenging because some loss functions aren't nonnegative by definition. For example, the Pareto GEVL kernel takes values $\delta$, but $\delta$ can be negative (an under-estimate). When we take the log of the Kernel in the GEVL, we end up taking the log of negative numbers, which produces incorrect results. We have to make decisions about how to modify the Pareto kernel perhaps by taking the absolute value and adding 1: $L_{Pareto} = \frac{1}{T}\sum_{t=1}^T \log(|\delta| + 1)$.
+
+Depending on the time and difficulty of implementation, we may also attempt to use an autoencoder \cite{IntroAutoencodersTensorFlow}. This type of neural network first produces a low-dimension reduction of the data (encoding) and then attempts to recreate the inputs (decoding) by learning the true relationships within the data. The dimension reduction reduces the data to its core relationships so that these are what are recreated in the de-coding step.
+
+Another step we may take, time-permitting, is to appropriately address the missing values in our data via the some of the methods and ideas described in \cite{tanDATAGRUDualAttentionTimeAware2020, cheRecurrentNeuralNetworks2018}. While these methods focus on medical applications, the presence of missing data in the meteorological setting may also be informative and for irregular lengths. These methods may prove useful in such as setting. The masking in particular should provide information to the network about the presence of missing temperature observations and that the missing values may be special in some way.
+
+\subsection{Generalized Error Loss Function Derivations}
+
+\begin{figure}[hb]
+    \centering
+    \includegraphics[width=.45\textwidth]{kernels.png}
+    \caption{Kernels for the five distributions under consideration.}
+    \label{fig:kernels}
+\end{figure}
+
+From the GEVL paper \cite{zhangEnhancingTimeSeries2021}, we will implement several more loss functions using new kernels. The GEVL function is
+$$L_{GEVL}(X^k, Y) = -\frac{1}{T\tau} \sum_{t=1}^T \log \mathcal{K}\left(\frac{f_\theta (X^k_{1:t} - \phi(y_t)}{\tau}\right)$$ 
+where we set the bandwidth to $\tau = 1$ and use the identity function $\phi(y_t) = y_t$. Zhang et al used 10 hidden units in the hidden layer of their GRU and LSTM RNNs \cite{zhangEnhancingTimeSeries2021}.
+
+Let $\delta = f_{\theta}(X^k_1:t) - y_t$ be the residual between the prediction at time $t$ and the observation at time $t$.
+
+The Gaussian kernel function $\mathcal{K}(\delta) = \frac{1}{\omega}\exp\left(-\frac{(\delta - \mu)^2}{\omega}\right)$ where $\mu = 0$ and $\omega = 1$ is centered at zero and has 95\% of its mass between -2 and 2. The GEVL based on the Gaussian kernal is
+\begin{align*}
+    L_{Gaussian}(X^k, Y) &= -\frac{1}{T} \sum_{t=1}^T \log \left[ \frac{1}{\omega}\exp\left(-\frac{(\delta - \mu)^2}{\omega} \right) \right] \\
+    &= L_{SquaredError}(X^k, Y)
+\end{align*}
+which is the default configuration of regression machine learning models. This loss heavily penalizes incorrect extreme predictions, so the model tends to forecast very near to the mean trend.
+
+The Gumbel kernel function $\mathcal{K}(\delta) = \exp\left[-\delta^2(1 - e^{-\delta^2})^\gamma \right]$ was discussed by \cite{zhangEnhancingTimeSeries2021}. The kernel has a wide flat peak allowing for relatively uniform density between -2 and 2 but tails slightly lighter than the Gaussian kernel. The GEVL reduces to a slight modification of the squared error loss where each term is multiplied by a factor that slightly reduces the penalty for non-centered forecasts.
+\begin{align*}
+    L_{Gumbel}(X^k, Y) &= -\frac{1}{T} \sum_{t=1}^T \log \left[\exp\left[-\delta^2(1 - e^{-\delta^2})^\gamma \right]\right] \\
+    &= \frac{1}{T} \sum_{t=1}^T \delta^2 \left[1 - \exp\left(-\delta^2\right)\right]^\gamma
+\end{align*}
+In \cite{zhangEnhancingTimeSeries2021}, they used $\gamma = 1.1$.
+
+The Fr\'echet kernel function $\mathcal{K}(z) = \frac{\alpha}{s} z^{-(\alpha + 1)} \exp\left(-z^{-\alpha}\right)$ where $z(\delta) = \frac{\delta}{s} + \left(\frac{\alpha}{1+\alpha}\right)^{1/\alpha}$ is defined only for non-negative values so the input to the GEVL $\delta$ must be passed through a rectified linear unit first to input $\delta^* = \mathrm{relu}(\delta)$ so that negative residuals are set to 0. This is the approach taken in \cite{zhangEnhancingTimeSeries2021}. The GEVL function is
+\begin{align*}
+    L_{Fr\acute{e}chet}(X^k, Y) &= -\frac{1}{T} \sum_{t=1}^T \log\frac{\alpha}{s} z^{-(\alpha + 1)} \exp\left(-z^{-\alpha}\right) \\
+    &= \frac{\alpha+1}{T} \sum_{t=1}^T \log z + \frac{1}{T} \sum_{t=1}^T z^{-\alpha}
+\end{align*}
+In \cite{zhangEnhancingTimeSeries2021}, they used $\alpha = 13$ and $s = 1.7$. Since the kernel with these parameters is peaked near 1.7, the GEVL penalizes both forecasts between 0 and 1 and greater than 2. Forecasts less than 0 get no penalty since the loss become 0.
+
+For the Cauchy kernel function $\mathcal{K}(\delta) = \left[1 + \left(\frac{\delta - m}{\gamma}\right)^{2}\right]^{-1}$ we set $m = 0$ and $\gamma = 1$ to get the GEVL. The Cauchy kernel is for symmetric distributions of real-valued observations with heavy tails with peaks less wide than the Gumbel.\begin{align*}
+    L_{Cauchy}(X^k, Y) &= -\frac{1}{T} \sum_{t=1}^T \log \left[(1 + \delta^2)^{-1}\right] \\
+    &= \frac{1}{T} \sum_{t=1}^T \log \left[1 + \delta^2 \right]
+\end{align*}
+The tails of this kernel are fatter than those of the Gumbel or Gaussian. This should allow for the most extreme value forecasts.
+
+The Pareto kernel function $\mathcal{K}(\delta) = s^{\alpha} \delta^{-(\alpha+1)}$ we have to choose settings for $\alpha$ and $s$. The Pareto kernel is for $X > \alpha$  and skewed distributions of observations.
+\begin{align*}
+    L_{Pareto}(X^k, Y) &= -\frac{1}{T} \sum_{t=1}^T \log \left[s^{\alpha} \delta^{-(\alpha+1)}\right] \\
+    &\Rightarrow \frac{\alpha + 1}{T} \sum_{t=1}^T \log\delta
+\end{align*}
+This loss function is a simplified component of the Fr\'echet GEVL, but with a fatter tail depending on the shape parameters $s$.
+
+\subsection{Model Design \& Structure}
+
+The structure of the GRU models was kept consistent for all of the GEVL variations. We used 64 GRU nodes in the input layer followed by 32 GRU nodes in the hidden layer and 10 nodes with identity activation in the output layer. Between each layer we used 0.2 for the dropout to randomly set 20\% of inputs to the next layer to zero. The Adam optimizer was used for training. All of these settings follow from the Tensorflow documentations tutorials on using GRU and LSTM models \cite{RecurrentNeuralNetworks, TimeSeriesForecasting}. 
+
+We used a 70-30 train-test split for the meteorological data from Florida with length $T_{train} = 26,828$ for the training data and length $T_{test} = 11,444$ for the testing data. The training data is structured to have the 10 time series each lagged per hour up to 96 hours or four days so that the model is forecasting directly based on the past four days of input along with the information passed through the hidden states. This results in an input tensor of dimension $T_{train} \times 96 \times 10$. The model is validated in training on 20\% of the training data set in the Keras fit function. Missing data in both the training and testing data set were imputed by the training data mean of each time series as is recommended in \cite{cheRecurrentNeuralNetworks2018}. 
+
+The GEVL parameters are borrowed from \cite{zhangEnhancingTimeSeries2021} for the Gumbel and Fr\'echet losses. For the Cauchy GEVL we set $\tau = 1$ for a standard bandwith as in the Gaussian GEVL which was simplified to the squared error loss. We were unfortunately unable to get the Pareto GEVL equipped GRU and LSTM models to produce non-negative loss values resulting in unusable models.
+
+The parameters of LSTM model we choose 360 lags in the training data and 96 forward steps for the testing data, since we want number of lags could steps back in 60min intervals and steps in future to forecast could in 60min intervals as well. For the model design, we only add a layer with 32 LSTM modules and relu activation function before the output layer. There are 96 nodes in the dense layer with identity activation function. The model was fit using the squared error loss function and takes a matrix of size $T_{train}$ as input.
+
+The VAR statsitical model with constant and trend terms was of order 52; ie used 52 autoregressive lags which was selected by the AIC criterion. The model was allowed to choose up to 100 lags which would have exceeded the lags for the ML models. The BIC criterion, known to be conservative, selected only 6 lags. The model was fit using the squared error loss function and takes a matrix of size $T_{train} \times 10$ as input. Lags are created internally as part of the model fitting procedure.
+
+\section{Experimental Settings \& Results}
+
+% Next we will discuss the settings under which we trained the model and present some results.
+
+\subsection{Experimental Settings}
+
+To be able to quickly iterate through various model settings and tweaks to the loss functions we used a batch size of 32 observations on 100 training epochs with an early stopping time of 25 epochs without improvement in the validation loss. The models almost always reached the early stopping time before completing 100 epochs indicating that the models are converging to a local minimum of the loss. We tried using higher and lower batch sizes but found no significant differences in model performance but the other sizes did result in significantly longer training times.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=.5\textwidth]{wind_speed_gaussian_lstm_forecast.png}
+    \caption{Wind speed predictions from a lstm model equipped with the Gaussian GEVL.}
+    \label{fig:wind-speed-lstm}
+\end{figure}
+
+In total we successfully fit four of the five planned GRU models and one VAR model. The LSTM model was not producing forecasts that met the baseline of the VAR, so we were not able to create a suitable LSTM model for comparison. The GRU models were differentiated by their different loss functions as previously described: Gaussian/Squared error loss, Gumbel, Cauchy, and Fr\'echet. We were unable to fit the Pareto GEVL GRU model as the loss produced negative or infinite losses resulting in non-convergence. 
+
+In addition to the GRU and LSTM ML models and the ARIMA and VAR statistical models, we also tried to forecast using an autoencoder \cite{IntroAutoencodersTensorFlow}. Autoencoders have been used to process incomplete data in bioinformatics settings \cite{eraslanSinglecellRNAseqDenoising2019, tianModelbasedAutoencodersImputing2020}. Unfortunately, we were unable to figure out how to produce forecasts instead of de-noised training data. 
+
+% Graphs of predictions for:
+% Wind Speed:
+    % GRU Gaussian, Cauchy
+
+
+    % LSTM Gaussian
+
+
+\subsection{Dataset}
+
+% Need to describe the Florida data set and why it was chosen
+
+We collected the hourly barometric pressure, wind speeds, and wind directions for Wakulla, Miami-Dade, and Hillsborough counties in Florida over 2017 through 2019 \cite{DataToolsClimate}. In total we have $T = 38,464$ observations for each variable across the three counties with significant amounts of missing data. These data were chosen after consultation with Prof. He as they may be more interesting than our originally chosen data set on temperatures, winds, and precipitation along the mid-Atlantic and northeast coast of the US.
+
+Hurricanes are strong tropical storms that are characterized by cyclonic rotation, strong winds, heavy rain, and a steep pressure gradient near the center of the storm. Hurricanes Irma and Michael struck Florida in 2017 and 2018 respectively so we should see extreme values in both pressure and wind speed and potentially wind direction as well for the time periods corresponding to those events.
+
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\subsection{Results}
+
+We evaluated our models' forecasts with an initial visual inspection and then in more detail using root mean squared error (RMSE), presented in Table \ref{tab:forecast-res-rmse}, and the median average error (MAE), presented in Table \ref{tab:forecast-gru-mae}. We chose to use RMSE as this gives us a combined measure of the uncertainty in the forecasts along with their bias. Median average error was chosen since we have extreme values in the data and we don't want outlier errors in the forecast to unduly bias the evaluation as would be the case with mean average error. 
+
+To begin, we will discuss the Gaussian GEVL LSTM forecasts. We started with univariate forecasts of the wind speed in Wakulla county as displayed in Figure \ref{fig:wind-speed-lstm}. From the figure, it is clear that the model fails to produce adequate forecasts for this univariate time series as the forecasts (orange line) are just slight variations about the mean. This indicates that the model was unable to pick up on any kind of signal in the noisy data. However, after considering the significantly better performance of the GRU models, the forecast should be more nuanced than this.
+
+We now compare the VAR and GRU models' forecasts directly. The VAR model makes significantly worse forecasts than all four GRU models, although better than the LSTM's forecasts. The slight periodic trend in the forecast of the VAR model picked up on some signal in the noisy time series, but far from the signal found by the GRU model. The MAE for the VAR is on average 2$\times$ larger than that of the Gaussian GEVL equipped GRU model for wind speed and direction forecasts and 4$\times$ larger for air pressure forecasts. Checking the plot of the VAR forecasts for wind speeds in Figure \ref{fig:var-ws-forecasts}, we can see that while the model is able to produce non-mean trend forecasts for a few hundred time-steps into the testing data set, it eventually is only able to forecast the mean trend. This is a well-known limitation of statistical time series models.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=.49\textwidth]{VAR_forecast_wind_speed.png}
+    \caption{Forecasts for the wind speed in Wakulla, Hillsborough, and Miami-Dade counties by the VAR statistical model.}
+    \label{fig:var-ws-forecasts}
+\end{figure}
+
+The best GRU model was the Cauchy model which had the best RMSE for all time series but the Miami-Dade wind speed as shown in Table \ref{tab:forecast-res-rmse} and the best MAE for all but the Miami-Dade and Hillsborough wind speed series as in Table \ref{tab:forecast-gru-mae}. The ability to actually allow for more extreme forecasts via the fat tails of the kernel seems to work better than having a fat peak as in the Gumbel or the shift away from zero in the Fr\'echet kernel.
+
+The forecasts for wind speed from the GRU models are presented in Figure \ref{fig:wind-speed-gru} and for air pressure in Figure \ref{fig:pressure-forecasts}. The wind speed forecasts for the Cauchy and Gaussian GEVLs closely forecast the ground truth of the test data set in Wakulla and Hillsborough county. The Fr\'echet and Gumbel forecasts tend to over- or under-forecast the ground truth by a more significant margin. This is particularly apparent between 100 and 120 time steps into the test data when we see the Fr\'echet forecast greatly overshoot the ground truth and other forecasts in Wakulla county and significantly undershoot the Hillsborough county forecasts and ground truth. The wind speed forecasts for Miami-Dade tell a slightly different story as the Cauchy and Gaussian forecasts are nearly identical while the Gumbel isn't far off. The Fr\'echet wildly oscillates between over- and under-forecasting. It seems like the Gaussian just slightly edges out the Cauchy forecast in this time series by being slightly closer at few points throughout the test set.
+
+With the air pressure forecasts for Wakulla county, we see a very different result in Figure \ref{fig:pressure-forecasts}. While the Fr\'echet forecast is still wildly oscillating, the Gaussian model  forecast no longer tracks the ground truth (in this stretch of the test set it happens to be missing so we are comparing to the mean baseline) but also oscillates wildly. The Gumbel model tends to over-forecast in this stretch while the Cauchy model forecasts values that oscillate about evenly above and below the mean. 
+
+\begin{table}[t]
+    \centering
+    \begin{tabular}{lrrrrr}
+\hline
+                        Forecast MAE & VAR & Gaussian &  Gumbel &  Frechet &  Cauchy \\
+\hline
+         WS Wakulla &  2.3279 & 1.0263 & 1.1082 & 1.2131 & \textbf{0.9940} \\
+ BP Wakulla &  3.6946 & 0.9072 & 1.2662 & 1.1495 & \textbf{0.8811} \\
+       cos WD Wakulla & 0.7232 & 0.3606 & 0.4209 & 0.5106 & \textbf{0.3483} \\
+       sin WD Wakulla & 0.7981 & 0.3198 & 0.3602 & 0.4415 & \textbf{0.3126} \\
+    WS Hillsborough & 2.4572 & \textbf{1.1497} & 1.1715 & 1.3062 & 1.1718 \\
+  cos WD Hillsborough & 0.6526 & 0.3435 & 0.3728 & 0.5220 & \textbf{0.3401} \\
+  sin WD Hillsborough & 0.6312 & 0.3470 & 0.3817 & 0.4655 & \textbf{0.3362} \\
+           WS Miami-Dade & 3.2390 & \textbf{1.5011} & 1.5149 & 1.7012 & 1.5266 \\
+         cos WD Miami-Dade & 0.6642 & 0.3733 & 0.4458 & 0.5028 & \textbf{0.3597} \\
+         sin WD Miami-Dade & 0.6486 & 0.3741 & 0.4250 & 0.4695 & \textbf{0.3528} \\
+\hline
+\end{tabular}
+    \caption{MAE of the four multivariate models forecasts for the Test Data. \textbf{Bold} values indicate best forecast performance on that variable.}
+    \label{tab:forecast-gru-mae}
+\end{table}
+
+\begin{figure}[b]
+    \centering
+    \includegraphics[width=.5\textwidth]{forecasts_all_models_wind_speed_large_font.png}
+    \caption{Wind speed forecasts from the four GRU models on the test data set.}
+    \label{fig:wind-speed-gru}
+\end{figure}
+
+
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=.5\textwidth]{forecasts_all_models_pressure_large_font.png}
+    \caption{Pressure forecasts from the four GRU models equipped with the GEVL functions.}
+    \label{fig:pressure-forecasts}
+\end{figure}    
+
+
+
+\section{Discussion}
+
+The GEVL seems to be a useful framework for producing forecasts that can more readily produce extreme value forecasts. While we were able to produce competitive forecasts with the Gumbel and Fr\'echet GEVL-equipped GRU models compared to the Gaussian GEVL model, they did not have the superior performance that was observed in the original paper \cite{zhangEnhancingTimeSeries2021}. 
+
+Additionally, we were only able to produce adequate forecasts for the Fr\'echet GEVL model after applying some post-processing. The unprocessed forecast was clearly shifted upwards relative to the the ground truth time series. To account for this we applied the transformation 
+\[\hat{y}_t^{*(k)} = \hat{y}_t^{(k)} - \mathrm{MAE}(\hat{Y}^{(k)} - Y_{test}^{(k)}\] where $\hat{y}_t^{(k)} \in \hat{Y}^{(k)}$ is the forecast for the $k$th time series, $Y_{test}^{(k)}$ is the ground truth of the test portion of the time series and $y_t^{*(k)}$ is the transformed final forecast at time point $t \in T_{train}, \dots, T$. This post-processing was not remarked upon in \cite{zhangEnhancingTimeSeries2021}.
+
+The Cauchy GEVL forecast is a novel implementation of the GEVL concept that improves on the kernels previously chosen. Use of the Cauchy for a fat-tailed distribution is very common in statistical methodology and it is unclear why it wasn't the immediate first choice of the authors of \cite{zhangEnhancingTimeSeries2021}. The Cauchy GEVL tracks trends closely by having a narrow peak compared to the Gumbel kernel while allowing for extreme value forecasting compared to the Gaussian kernel's narrower preferred range of errors. 
+
+We unfortunately weren't able to create LSTM models so future work should focus on implementing the GEVL in a wider selection of models. It is also unfortunate that we were unable to create adequate forecasts with the Pareto kernel as this would have allowed for particularly extreme forecasts.
+
+\section{Conclusion}
+
+Extreme value forecasting is a difficult problem. Using different loss functions can help make better forecasts. In our experiments, we found that the GRU model is easier to make work well. The multivariate problem is more challenging with statistical models than with ML models like GRU and LSTM. 
+
+Using different kernels makes better extreme value predictions compared to squared error loss. Future work should focus more on why these predictions are better. What exactly is it about the kernel that allows for extreme value predictions?
+
+\section{Project Responsibilties}
+% Team collaboration plan
+\subsection{Team collaboration}
+
+Benjamin Stockton: Set up ARIMA and VAR statsitical models, Set up the GRU models. Search and write equation of kernel functions: Gaussian, Gumbel, Frechet, Cauchy and Pareto. GRU models has the correct prediction with Gaussian, Gumber, Frechet and Cauchy functions. And GRU models work well on multivariate prediction.
+
+Yongqi Ni: Set up the LSTM models. Write the code of kernel function and add them into GRU and LSTM models. LSTM model and VAR statistical models do not have a reasonable prediction for wind speed, so we do not work further. 
+
+\subsection{Responsibilities of Team}
+
+Ben and Yongqi wrote the Introduction and Related Work sections together. Yongqi created the system diagram while Ben wrote the Information Flow/Design section. The Technical Components section was mainly written by Ben; Yongqi contributed the LSTM description. Experimental Settings \& Results were written by Ben. Yongqi created the forecast plots, missing data pattern plot, and tables. Ben also wrote the Discussion. Yongqi wrote the conclusion and responsibilities section.
+% Introduction - Ben and Yongqi 
+
+% Related Works - Ben and Yongqi
+
+% Information Flow/Design - Ben
+
+% Technical Components:
+% Multivariate GRU - Ben; LSTM - Yongqi; Statistical Model - Ben
+
+% Experimental Settings \& Results - Ben 
+
+% Discussions - Ben 
+
+% Conclusions - Yongqi 
+
+% Weekly research plan
+\subsection{What we learned}
+
+In this project, we have learned how to use the codes to set up a machine learning model, such as  GRU model, LSTM model and ARIMA/VAR statistical model. We also learned there are several ways achieving loss function. Then we learned the data is not always sufficient, sometimes there are irregular time intervals and incomplete features. If the missing data is only a small piece, we can consider not using this piece of data as training data; Or we can use the average of the overall data to fill the gap, minimizing the impact on the final forecast. 
+
+
+\bibliographystyle{ieeetr} % We choose the "plain" reference style
+\bibliography{ref} % Entries are in the ref.bib file
+
+\end{document}

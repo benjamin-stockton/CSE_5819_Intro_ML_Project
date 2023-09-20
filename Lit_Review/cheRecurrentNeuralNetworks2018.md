@@ -1,0 +1,22 @@
+# Recurrent Neural Networks for Multivariate Time Series with Missing Values
+
+![[cheRecurrentNeuralNetworks2018-zotero#Metadata]]
+
+Other files:
+* Mdnotes File Name: [[cheRecurrentNeuralNetworks2018]]
+* Metadata File Name: [[cheRecurrentNeuralNetworks2018-zotero]]
+
+##  Zotero links
+* [Local library](zotero://select/items/1_94SQKKLV)
+* [Cloud library](http://zotero.org/users/4968335/items/94SQKKLV)
+
+## Notes
+- 
+
+* Mdnotes File Name: [[cheRecurrentNeuralNetworks2018]]
+
+# Annotations(2022-09-28)
+“t takes two representations of missing patterns, i.e., masking and time interval, and effectively incorporates them into a deep model architecture so that it not only captures the long-term temporal dependencies in time series, but also utilizes the missing patterns to achieve better prediction results.” (Che et al., 2018, p. 1)“It has been noted that these missing values are usually informative missingness1, i.e., the missing values and patterns provide rich information about target labels in supervised learning tasks (e.g, time series classification).” (Che et al., 2018, p. 1)“Multiple imputation11,12 can be further applied with these imputation methods to reduce the uncertainty, by repeating the imputation procedure multiple times and averaging the results.” (Che et al., 2018, p. 1)“Combining the imputation methods with prediction models often results in a two-step process where imputation and prediction models are separated. By doing this, the missing patterns are not effectively explored in the prediction model, thus leading to suboptimal analyses results13.” (Che et al., 2018, p. 1)“n this paper, we develop a novel deep learning model based on GRU, namely GRU-D, to effectively exploit two representations of informative missingness patterns, i.e., masking and time interval. Masking informs the model which inputs are observed (or missing), while time interval encapsulates the input observation patterns.” (Che et al., 2018, p. 2)“The first approach is simply to replace each missing observation with the mean of the variable across the training examples” (Che et al., 2018, p. 3)“ x d is calculated on the training dataset and used for both training and testing datasets.” (Che et al., 2018, p. 3)“Graphical illustrations of the original GRU (top-left), the proposed GRU-D (bottom-left), and the whole network architecture (right).” (Che et al., 2018, p. 3)“For example, we may assume any missing value is the same as its last measurement and use forward imputation (GRU-Forward)” (Che et al., 2018, p. 4)“Instead of explicitly imputing missing values, the third approach simply indicates which variables are missing and how long they have been missing as a part of input by concatenating the measurement, masking and time interval vectors as” (Che et al., 2018, p. 4)“To fundamentally address the issue of missing values in time series, we notice two important properties of the missing values in time series, especially in the healthcare domain: First, the value of the missing variable tend to be close to some default value if its last observation happens a long time ago. This property usually exists in health care data for human body as homeostasis mechanisms and is considered to be critical for disease diagnosis and treatment26. Second, the influence of the input variables will fade away over time if the variable has been missing for a while.” (Che et al., 2018, p. 4)“We introduce decay rates in the model to control the decay mechanism by considering the following important factors. First, each input variable in health care time series has its own meaning and importance in medical applications. The decay rates should differ from variable to variable based on the underlying properties associated with the variables. Second, as we see lots of missing patterns are informative and potentially useful in prediction tasks but unknown and possibly complex, we aim at learning decay rates from the training data rather than fixed a priori.” (Che et al., 2018, p. 4)“First, for a missing variable, we use an input decay γx to decay it over time toward the empirical mean (which we take as a default configuration), instead of using the last observation as it is.” (Che et al., 2018, p. 4)“In order to capture richer knowledge from missingness, we also have a hidden state decay γh in GRU-D. Intuitively, this has an effect of decaying the extracted features (GRU hidden states) rather than raw input variables directly.” (Che et al., 2018, p. 5)
+
+
+
